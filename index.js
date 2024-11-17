@@ -1,6 +1,6 @@
 const express = require("express");
 const { Telegraf } = require("telegraf");
-var moment = require("moment");
+const moment = require("moment");
 const axios = require("axios"); // Importar Axios para interactuar con Mastodon
 require("dotenv").config();
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -18,10 +18,13 @@ async function getProfile() {
         Authorization: `Bearer ${accessToken}`,
       },
     });
+    if (!response.data) {
+      throw new Error("No data received from Mastodon API.");
+    }
     return response.data;
   } catch (error) {
-    console.error("Error al obtener el perfil:", error.response ? error.response.data : error.message);
-    return "No se pudo obtener el perfil.";
+    console.error("Error al obtener el perfil:", error.message);
+    return "No se pudo obtener el perfil. Por favor, intenta de nuevo más tarde.";
   }
 }
 
@@ -33,10 +36,13 @@ async function getTimeline() {
         Authorization: `Bearer ${accessToken}`,
       },
     });
-    return response.data.map((toot) => `${toot.account.display_name}: ${toot.content}`).join("\n\n");
+    if (!response.data) {
+      throw new Error("No data received from Mastodon API.");
+    }
+    return response.data.map((toot) => `${toot.account.display_name}: ${toot.content}`).join("\n\n") || "No hay toots recientes.";
   } catch (error) {
-    console.error("Error al obtener los toots:", error.response ? error.response.data : error.message);
-    return "No se pudieron obtener los últimos toots.";
+    console.error("Error al obtener los toots:", error.message);
+    return "No se pudieron obtener los últimos toots. Por favor, intenta de nuevo más tarde.";
   }
 }
 
@@ -48,10 +54,13 @@ async function getNotifications() {
         Authorization: `Bearer ${accessToken}`,
       },
     });
-    return response.data.map((notification) => `${notification.type}: ${notification.status.account.display_name}`).join("\n\n");
+    if (!response.data) {
+      throw new Error("No data received from Mastodon API.");
+    }
+    return response.data.map((notification) => `${notification.type}: ${notification.status.account.display_name}`).join("\n\n") || "No tienes notificaciones.";
   } catch (error) {
-    console.error("Error al obtener las notificaciones:", error.response ? error.response.data : error.message);
-    return "No se pudieron obtener las notificaciones.";
+    console.error("Error al obtener las notificaciones:", error.message);
+    return "No se pudieron obtener las notificaciones. Por favor, intenta de nuevo más tarde.";
   }
 }
 
@@ -63,10 +72,13 @@ async function getFollowing() {
         Authorization: `Bearer ${accessToken}`,
       },
     });
-    return response.data.map((account) => (account.following ? account.account.display_name : "No sigues a nadie")).join("\n\n");
+    if (!response.data) {
+      throw new Error("No data received from Mastodon API.");
+    }
+    return response.data.map((account) => (account.following ? account.account.display_name : "No sigues a nadie")).join("\n\n") || "No sigues a ninguna cuenta.";
   } catch (error) {
-    console.error("Error al obtener las cuentas que sigues:", error.response ? error.response.data : error.message);
-    return "No se pudieron obtener las cuentas que sigues.";
+    console.error("Error al obtener las cuentas que sigues:", error.message);
+    return "No se pudieron obtener las cuentas que sigues. Por favor, intenta de nuevo más tarde.";
   }
 }
 
@@ -79,42 +91,78 @@ async function searchToots(query) {
         Authorization: `Bearer ${accessToken}`,
       },
     });
-    return response.data.map((toot) => `${toot.account.display_name}: ${toot.content}`).join("\n\n");
+    if (!response.data) {
+      throw new Error("No data received from Mastodon API.");
+    }
+    return response.data.map((toot) => `${toot.account.display_name}: ${toot.content}`).join("\n\n") || "No se encontraron resultados.";
   } catch (error) {
-    console.error("Error al realizar la búsqueda:", error.response ? error.response.data : error.message);
-    return "No se pudieron realizar los resultados de la búsqueda.";
+    console.error("Error al realizar la búsqueda:", error.message);
+    return "No se pudieron realizar los resultados de la búsqueda. Por favor, intenta de nuevo más tarde.";
   }
 }
 
 // Comando "/help" para mostrar las instrucciones del bot
 bot.command("help", (ctx) => {
-  ctx.reply(
-    "Hola! soy el bot de gestión contable de commit_36 \n\n Consultas que puedes realizar: \n\n 1) Obtener perfil Mastodon: /perfil \n 2) Obtener los últimos toots: /toots \n 3) Obtener notificaciones de Mastodon: /notificaciones \n 4) Ver las cuentas que sigues: /siguiendo \n 5) Buscar toots: /buscar [término]"
-  );
+  console.log("Comando /help ejecutado");
+
+  // Verificar si el contexto está disponible
+  console.log("ctx", ctx);
+
+  ctx
+    .reply(
+      "Hola! Soy el bot de gestión contable de commit_36. Aquí tienes las consultas que puedes realizar: \n\n" +
+        "1) Obtener perfil Mastodon: /perfil \n" +
+        "2) Obtener los últimos toots: /toots \n" +
+        "3) Obtener notificaciones de Mastodon: /notificaciones \n" +
+        "4) Ver las cuentas que sigues: /siguiendo \n" +
+        "5) Buscar toots: /buscar [término]"
+    )
+    .then(() => {
+      console.log("Respuesta enviada a Telegram");
+    })
+    .catch((err) => {
+      console.error("Error al enviar la respuesta a Telegram:", err.message);
+    });
 });
 
 // Comando "/perfil" para obtener el perfil de la cuenta
 bot.command("perfil", async (ctx) => {
-  const profile = await getProfile();
-  ctx.reply(`Perfil de Mastodon:\n\nNombre: ${profile.display_name}\nBio: ${profile.note}\nURL: ${profile.url}`);
+  try {
+    const profile = await getProfile();
+    ctx.reply(`Perfil de Mastodon:\n\nNombre: ${profile.display_name}\nBio: ${profile.note}\nURL: ${profile.url}`);
+  } catch (error) {
+    ctx.reply("Hubo un error al intentar obtener el perfil. Inténtalo de nuevo más tarde.");
+  }
 });
 
 // Comando "/toots" para obtener los últimos "toots"
 bot.command("toots", async (ctx) => {
-  const timeline = await getTimeline();
-  ctx.reply(`Últimos Toots:\n\n${timeline}`);
+  try {
+    const timeline = await getTimeline();
+    ctx.reply(`Últimos Toots:\n\n${timeline}`);
+  } catch (error) {
+    ctx.reply("Hubo un error al intentar obtener los toots. Inténtalo de nuevo más tarde.");
+  }
 });
 
 // Comando "/notificaciones" para obtener las notificaciones
 bot.command("notificaciones", async (ctx) => {
-  const notifications = await getNotifications();
-  ctx.reply(`Notificaciones:\n\n${notifications}`);
+  try {
+    const notifications = await getNotifications();
+    ctx.reply(`Notificaciones:\n\n${notifications}`);
+  } catch (error) {
+    ctx.reply("Hubo un error al intentar obtener las notificaciones. Inténtalo de nuevo más tarde.");
+  }
 });
 
 // Comando "/siguiendo" para obtener las cuentas que sigues
 bot.command("siguiendo", async (ctx) => {
-  const following = await getFollowing();
-  ctx.reply(`Cuentas que sigues:\n\n${following}`);
+  try {
+    const following = await getFollowing();
+    ctx.reply(`Cuentas que sigues:\n\n${following}`);
+  } catch (error) {
+    ctx.reply("Hubo un error al intentar obtener las cuentas que sigues. Inténtalo de nuevo más tarde.");
+  }
 });
 
 // Comando "/buscar" para buscar toots
@@ -123,14 +171,30 @@ bot.command("buscar", async (ctx) => {
   if (!query) {
     return ctx.reply("Por favor, ingresa un término de búsqueda.");
   }
-  const searchResults = await searchToots(query);
-  ctx.reply(`Resultados de la búsqueda:\n\n${searchResults}`);
+
+  try {
+    const searchResults = await searchToots(query);
+    ctx.reply(`Resultados de la búsqueda:\n\n${searchResults}`);
+  } catch (error) {
+    ctx.reply("Hubo un error al intentar realizar la búsqueda. Inténtalo de nuevo más tarde.");
+  }
 });
 
-// Iniciar el webhook
-const port = process.env.PORT || 1000;
+// Iniciar el webhook con validaciones
+const port = process.env.PORT || 3000;
 app.use(bot.webhookCallback("/telegraf"));
-bot.telegram.setWebhook(`https://telegram-bot-g1vd.onrender.com/telegraf`);
+
+// Validar que la URL de ngrok esté disponible antes de intentar configurar el webhook
+const webhookUrl = process.env.WEBHOOK_URL || "https://de0a-181-4-23-167.ngrok-free.app"; // Puedes personalizar el webhook URL
+bot.telegram
+  .setWebhook(webhookUrl)
+  .then(() => {
+    console.log(`Webhook successfully set at ${webhookUrl}`);
+  })
+  .catch((error) => {
+    console.error("Error setting webhook:", error.message);
+  });
+
 app.listen(port, () => console.log("Webhook bot listening on port", port));
 
 // Enable graceful stop
