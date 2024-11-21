@@ -6,6 +6,10 @@ require("dotenv").config();
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const app = express();
 
+console.log("BOT Token:", process.env.BOT_TOKEN);
+console.log("Mastodon Access Token:", process.env.MASTODON_ACCESS_TOKEN);
+console.log("Webhook URL:", process.env.WEBHOOK_URL);
+
 // URL de la API de Mastodon
 const mastodonApiUrl = "https://todon.nl/api/v1"; // Cambia esta URL a la instancia de Mastodon que uses
 const accessToken = process.env.MASTODON_ACCESS_TOKEN; // El token de acceso de Mastodon, usa un token personal
@@ -185,7 +189,7 @@ const port = process.env.PORT || 3000;
 app.use(bot.webhookCallback("/telegraf"));
 
 // Validar que la URL de ngrok esté disponible antes de intentar configurar el webhook
-const webhookUrl = process.env.WEBHOOK_URL || "https://de0a-181-4-23-167.ngrok-free.app"; // Puedes personalizar el webhook URL
+const webhookUrl = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/setWebhook?url=${process.env.WEBHOOK_URL}/telegraf`; // Puedes personalizar el webhook URL
 bot.telegram
   .setWebhook(webhookUrl)
   .then(() => {
